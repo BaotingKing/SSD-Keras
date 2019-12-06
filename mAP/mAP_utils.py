@@ -105,7 +105,7 @@ class GT_Txt_preprocessor(object):
                     if objs_info != 0:
                         name_id = filename.replace('_gtFine_polygons.json', '')
                         image_name = name_id + '_leftImg8bit.png'
-                        txt_name = image_name[:-5] + '.txt'
+                        txt_name = image_name[:-4] + '.txt'
                         generate_txt(os.path.join(self.result_out_path, txt_name), objs_info)
         print('---------------------: Cityscape is OK')
 
@@ -182,14 +182,13 @@ class GT_Txt_preprocessor(object):
 
 if __name__ == '__main__':
     print('This is used to generate GT files!')
-    print('no no no test.....')
 
-    json_path = '/eDisk/FCWS_dataset/BDD100k/bdd100k/labels/bdd100k_labels_images_val.json'
-    output_path = './mAP/BDD_GT'
-    # bdd_data_df = GT_Txt_preprocessor(json_path, output_path, lable_type='BDD')
-
-    json_path = '/eDisk/FCWS_dataset/Cityscape/cityscaps_label/gtFine/val'
-    output_path = './mAP/Cityscape_GT'
+    # json_path = '/eDisk/FCWS_dataset/BDD100k/bdd100k/labels/bdd100k_labels_images_val.json'
+    # output_path = './mAP/BDD_GT'
+    # # bdd_data_df = GT_Txt_preprocessor(json_path, output_path, lable_type='BDD')
+    #
+    # json_path = '/eDisk/FCWS_dataset/Cityscape/cityscaps_label/gtFine/val'
+    # output_path = './mAP/Cityscape_GT'
     # cityscape_data_df = GT_Txt_preprocessor(json_path, output_path, lable_type='Cityscape')
 
     txt_path = '/eDisk/FCWS_dataset/Udacity/object_detection_crowdai/label_txt'

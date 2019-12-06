@@ -266,12 +266,13 @@ model = SSD(input_shape, num_classes=NUM_CLASSES)
 flag = 0
 if flag == 0:
     model.load_weights(os.path.join(MODEL_PATH, 'best_weights.hdf5'), by_name=True)
-
 elif flag == 1:
+    """skip mismatch lay's name or lay's shape"""
+    model.load_weights(os.path.join(MODEL_PATH, 'best_weights.hdf5'), by_name=True, skip_mismatch=True)
+elif flag == 2:
     MODEL_PATH = '../model/mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_224.h5'
     model.load_weights(MODEL_PATH, by_name=True)
-
-elif flag == 2:
+elif flag == 3:
     freeze = ['input_1', 'conv1_1', 'conv1_2', 'pool1',
               'conv2_1', 'conv2_2', 'pool2',
               'conv3_1', 'conv3_2', 'conv3_3', 'pool3']  # ,

@@ -17,7 +17,7 @@ CLASS_NEED = {
 
 
 def search_file(rootdir, target_file):
-    target_file_path = None
+    target_file_path = 'None'
     for parent, dirnames, filenames in os.walk(rootdir):
         if target_file in filenames:
             target_file_path = os.path.join(parent, target_file)
@@ -132,17 +132,28 @@ def single_img_GT_show(image_name, data_type=''):
         cv2.putText(img_origin, 'C: ' + str(obj[0]), (int(obj[1]), int(obj[2]) + 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
     print('---===: ', image_name)
-    cv2.imshow('display', img_origin)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imshow('single_img_GT_show', img_origin)
+
+    if cv2.waitKey(1) & 0xFF == ord(' '):
+        cv2.waitKey(0)
 
 
 if __name__ == '__main__':
     TRAIN_IMG_PATH = '/eDisk/Merge_Train_Dataset/Train_Dataset'
-    LABLE_PATH = '/eDisk/FCWS_dataset/BDD100k/bdd100k/labels/bdd100k_labels_images_train.json'
-    LABLE_PATH = '/eDisk/FCWS_dataset/Cityscape/cityscaps_label/gtFine/train'
-    LABLE_PATH = '/eDisk/FCWS_dataset/KITTI/training_label/label_2/'    # KITTY
-    LABLE_PATH = '/eDisk/FCWS_dataset/Udacity/object_dataset/label_txt'    # Udacity
-    img_name = '1478897450524944901.jpg'
-    single_img_GT_show(img_name, data_type='Udacity')
+    # TRAIN_IMG_PATH = '/eDisk/FCWS_dataset/KITTI/training/image_2'
 
+    # LABLE_PATH = '/eDisk/FCWS_dataset/BDD100k/bdd100k/labels/bdd100k_labels_images_train.json'
+    # LABLE_PATH = '/eDisk/FCWS_dataset/Cityscape/cityscaps_label/gtFine/train'        # Cityscape
+    # LABLE_PATH = '/eDisk/FCWS_dataset/KITTI/'                                      # KITTY
+    # LABLE_PATH = '/eDisk/FCWS_dataset/Udacity/object_dataset/label_txt'              # Udacity
+    LABLE_PATH = '/eDisk/FCWS_dataset/Udacity/object_detection_crowdai/label_txt'    # Udacity
+
+    img_name = '1478732598519387314.jpg'
+    if False:
+        single_img_GT_show(img_name, data_type='Udacity')
+    else:
+        temp_TRAIN_IMG_PATH = '/eDisk/FCWS_dataset/Udacity/object_detection_crowdai/image/'
+        for parent, dirnames, filenames in os.walk(temp_TRAIN_IMG_PATH):
+            for target_file in filenames:
+                if target_file[-4:] in ['.jpg', '.png']:
+                    single_img_GT_show(target_file, data_type='Udacity')
