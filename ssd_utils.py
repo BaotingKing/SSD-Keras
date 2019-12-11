@@ -96,13 +96,7 @@ class BBoxUtility(object):
         encoded_box = np.zeros((self.num_priors, 4 + return_iou))
         assign_mask = iou > self.overlap_threshold
         if not assign_mask.any():
-            if False:      # TODO: 因为由于原始数据集和priors框尺度会存在差异,因此可能会出现IOU<<0.001这种情况,当遇到这种情况,取最大的5个作为assign priors.
-                idx = iou.argsort()[-2:]
-                debug_idx = iou.argmax()
-
-                assign_mask[idx] = True
-            else:
-                assign_mask[iou.argmax()] = True
+            assign_mask[iou.argmax()] = True
         if return_iou:
             encoded_box[:, -1][assign_mask] = iou[assign_mask]
         assigned_priors = self.priors[assign_mask]
@@ -136,7 +130,7 @@ class BBoxUtility(object):
                     or in other words is assigned to some ground truth box,
                 assignment[:, -7:] are all 0. See loss for more details.
         """
-        assignment = np.zeros((self.num_priors, 4 + self.num_classes + 8))
+        assignment = np.zeros((self.num_priors, 4 + self.num_classes + 8))    # 8means:4's boxoffset + 4's variable
         assignment[:, 4] = 1.0
         if len(boxes) == 0:
             return assignment
