@@ -130,7 +130,8 @@ class BBoxUtility(object):
                     or in other words is assigned to some ground truth box,
                 assignment[:, -7:] are all 0. See loss for more details.
         """
-        assignment = np.zeros((self.num_priors, 4 + self.num_classes + 8))    # 8means:4's boxoffset + 4's variable
+        assignment = np.zeros((self.num_priors, 4 + self.num_classes + 8))
+        # 8 means that pre_result last 8 column is 4's boxoffset + 4's variable, so keep shape same, but in there ,use one of these columns as label for positive idx
         assignment[:, 4] = 1.0
         if len(boxes) == 0:
             return assignment
