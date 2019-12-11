@@ -173,7 +173,7 @@ class BBoxUtility(object):
         prior_center_y = 0.5 * (mbox_priorbox[:, 3] + mbox_priorbox[:, 1])
         decode_bbox_center_x = mbox_loc[:, 0] * prior_width * variances[:, 0]
         decode_bbox_center_x += prior_center_x
-        decode_bbox_center_y = mbox_loc[:, 1] * prior_width * variances[:, 1]
+        decode_bbox_center_y = mbox_loc[:, 1] * prior_height * variances[:, 1]    #[Error]: decode_bbox_center_y = mbox_loc[:, 1] * prior_width * variances[:, 1]
         decode_bbox_center_y += prior_center_y
         decode_bbox_width = np.exp(mbox_loc[:, 2] * variances[:, 2])
         decode_bbox_width *= prior_width
