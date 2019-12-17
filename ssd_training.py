@@ -135,3 +135,15 @@ class MultiboxLoss(object):
                             tf.ones_like(num_pos))
         total_loss += (self.alpha * pos_loc_loss) / num_pos
         return total_loss
+
+
+if __name__ == '__main__':
+    import tensorflow.contrib.eager as tfe
+    import numpy as np
+
+    print('This is debug for loss function.......')
+    NUM_CLASSES = 1 + 2
+    tfe.enable_eager_execution()  # [Info]: It is very important to debug!!!!!
+    y_gt, y_pd = np.ones((2, 1917, 15)), np.ones((2, 1917, 15))
+    loss = MultiboxLoss(NUM_CLASSES, neg_pos_ratio=2.0).compute_loss(y_gt, y_pd)    # [Info]: Run your graph...
+    print('This is ending.......')
