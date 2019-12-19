@@ -16,9 +16,12 @@ import cv2
 import os
 import json
 import pickle
+import pandas as pd
 import numpy as np
+from collections import namedtuple
 from xml.dom.minidom import Document
 import xml.etree.ElementTree as ET
+import tensorflow as tf
 
 original_class = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow',
                   'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa',
@@ -30,7 +33,6 @@ std_class_ind = {
     'tvmonitor': '1',
     'bicycle': 'bike',
 }
-
 
 def read_voc_xml_to_txt():
     for parent, dirnames, filenames in os.walk(Original_xml_DIR):  # 分别得到根目录，子目录和根目录下文件
@@ -205,18 +207,123 @@ def generate_voc_pkl():
 
 
 def generate_voc_tfrecord():
-    pass
+    whole_data_info = []
+    for parent, dirnames, filenames in os.walk(Original_xml_DIR):  # 分别得到根目录，子目录和根目录下文件
+        for file_name in filenames:
+            full_path = os.path.join(parent, file_name)  # 获取文件全路径
+            tree = ET.parse(full_path)
+            root = tree.getroot()
+
+            img_name = root.find('filename').text
+            img_size = root.find('size')
+            width = float(img_size.find('width').text)
+            height = float(img_size.find('height').text)
+
+            for obj in root.findall('object'):
+                label_class = obj.find('name').text
+                if label_class not in original_class:
+                    continue
+                bbox = obj.find('bndbox')
+                box = {
+                    'x1': float(bbox.find('xmin').text),
+                    'y1': float(bbox.find('ymin').text),
+                    'x2': float(bbox.find('xmax').text),
+                    'y2': float(bbox.find('ymax').text)
+                }
+                single_obj_value = [img_name,
+                                    width,
+                                    height,
+                                    label_class,
+                                    min(box['x1'], box['x2']),
+                                    min(box['y1'], box['y2']),
+                                    max(box['x1'], box['x2']),
+                                    max(box['y1'], box['y2'])]
+                whole_data_info.append(single_obj_value)
+
+            column_attribute = ['filename', 'width', 'height', 'class', 'xmin', 'ymin', 'xmax',
+                                'ymax']
+            data_df = pd.DataFrame(whole_data_info, columns=column_attribute)
+    print('[Info]: ----------', data_df)
+    if False:
+        grouped = split(data_df, 'filename')
+        writer = tf.python_io.TFRecordWriter(output_path)
+        for group in grouped:
+            tf_example = create_tf_example(group, TRAIN_IMG_PATH)
+            writer.write(tf_example.SerializeToString())
+        writer.close()
+        output_path = os.path.join(os.getcwd(), output_path)
+
+    print('Successfully created the TFRecords: {}'.format(output_path))
+    print('Create VOC TfRecord is Ok!')
+
+
+def test_pkl(train_img_path, pkl_path):
+    gt = pickle.load(open(pkl_path, 'rb'))
+    keys = sorted(gt.keys())
+
+    class_name_np = np.array(original_class)
+    for key in keys:
+        img_path = os.path.join(train_img_path, key)
+        # img = imread(img_path).astype('float32')
+        img = cv2.imread(img_path)
+
+        img_size = img.copy()
+        img_shape = img.shape[:2]
+        WIDTH = img.shape[1]
+        HEIGHT = img.shape[0]
+        resize_shape = (300, 300)
+        img_size = cv2.resize(img_size, resize_shape)
+
+        for bbox in gt[key]:
+            class_mask = bbox[4:] == 1
+            class_name = class_name_np[class_mask][0]
+            x1 = int(bbox[0] * WIDTH)
+            y1 = int(bbox[1] * HEIGHT)
+            x2 = int(bbox[2] * WIDTH)
+            y2 = int(bbox[3] * HEIGHT)
+            cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), thickness=2)
+            cv2.putText(img, 'C: ' + str(class_name), (int(x1), int(y1) - 7),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            # if show_bdd_gt:
+            #     for obj in img_dict[key]:
+            #         if obj['category'] in CLASS_NEED.keys():
+            #             left_top_point = (int(obj['box2d']['x1']) + 2, int(obj['box2d']['y1']))
+            #             right_down_point = (int(obj['box2d']['x2']) + 2, int(obj['box2d']['y2']))
+            #             if CLASS_NEED[obj['category']] == 0:
+            #                 cv2.rectangle(img, left_top_point, right_down_point, (0, 255, 0), thickness=2)
+            #             else:
+            #                 cv2.rectangle(img, left_top_point, right_down_point, (200, 255, 255), thickness=2)
+
+            x1 = int(bbox[0] * resize_shape[0])
+            y1 = int(bbox[1] * resize_shape[1])
+            x2 = int(bbox[2] * resize_shape[0])
+            y2 = int(bbox[3] * resize_shape[1])
+            cv2.rectangle(img_size, (x1, y1), (x2, y2), (255, 255, 0), thickness=2)
+            cv2.putText(img_size, 'C: ' + str(class_name), (int(x1), int(y1) - 7),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+
+        jion_img_size = (max(img_shape[0], resize_shape[0]), img_shape[1] + resize_shape[1], 3)
+        jion_img = np.zeros(jion_img_size).astype('uint8')
+        jion_img[:img_shape[0], :img_shape[1], :] = img
+        jion_img[:resize_shape[0]:, img_shape[1]:, :] = img_size[:, :, :]
+        print('-----------------', key)
+        cv2.imshow('orgin', jion_img)
+        # cv2.imshow('img', img)
+        # cv2.imshow('img_size', img_size)
+        cv2.waitKey(0)
 
 
 if __name__ == '__main__':
     print('This is a special script for processing Pascal VOC data......')
-    Img_DIR = '/eDisk/FCWS_dataset/Pascal_VOC/VOC2012/Annotations/JPEGImages/'
+    Img_DIR = '/eDisk/FCWS_dataset/Pascal_VOC/VOC2012/JPEGImages/'
     Original_xml_DIR = '/eDisk/FCWS_dataset/Pascal_VOC/VOC2012/Annotations'
     Save_Path = 'VOC_2012.pkl'
     trans_format = 'pkl'
     if trans_format == 'pkl':
         generate_voc_pkl()
+        # test_pkl(Img_DIR, Save_Path)
     elif trans_format == 'tfrecord':
+        # 待调试 2019-12-19
         generate_voc_tfrecord()
     elif trans_format == 'json' or trans_format == 'xml':
         TXT_DIR = '/home/ulsee_lee/ULsee/Annotations/txt/'  # 保存txt格式的文件夹地址

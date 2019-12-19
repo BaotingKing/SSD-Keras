@@ -19,7 +19,6 @@ import json
 import pickle
 import numpy as np
 from xml.dom.minidom import Document
-import xml.etree.ElementTree as ET
 
 classes = {1: 'person', 2: 'bicycle', 3: 'car', 4: 'motorcycle', 5: 'airplane', 6: 'bus',
            7: 'train', 8: 'truck', 9: 'boat', 10: 'traffic light', 11: 'fire hydrant',
@@ -182,22 +181,129 @@ def generate_json(name, split_lines, img_size):
         file_h.write(json_str)
 
 
-def generate_coco_pkl():
-    pass
+def generate_coco_pkl(Original_Json, Save_Path):
+    data_dict = {}
+    with open(Original_Json, 'r') as file_handle:
+        json_data = json.load(file_handle)
+    img_info_dic = {}
+    for img_info in json_data['images']:        # 在"images"关键字下面存放的是图片名字,width,high和图片id信息,格式="0000id.jpg"
+        img_info_dic[img_info['id']] = {
+            "image_name": img_info['file_name'],
+            "width": img_info['width'],
+            "height": img_info['height'],
+            "bboxes": [],
+            "bboxes_cls": [],
+        }
+
+    for bbox_info in json_data['annotations']:   # "annotations"存放的是segmentation,image_id,bbox和category_id.
+        class_name = classes[bbox_info['category_id']]
+        if class_name not in class_need:
+            continue
+        bbox_img_info = img_info_dic[bbox_info['image_id']]
+        width = bbox_img_info['width']
+        height = bbox_img_info['height']
+
+        bbox = bbox_info['bbox']    # 左上角坐标和width,high
+        box = [
+            float(bbox[0]) / width,
+            float(bbox[1]) / height,
+            float(bbox[2] + bbox[0]) / width,
+            float(bbox[3] + bbox[1]) / height,
+        ]
+        bbox_img_info['bboxes'].append(box)
+        one_hot_vector = [0] * len(class_need)
+        idx = class_need.index(class_name)
+        one_hot_vector[idx] = 1
+        bbox_img_info['bboxes_cls'].append(one_hot_vector)
+
+    cnt = 0
+    for img_id, img_info in img_info_dic.items():
+        bounding_boxes = img_info['bboxes']
+        bounding_boxes_cls = img_info['bboxes_cls']
+        if len(bounding_boxes) == 0 or len(bounding_boxes_cls) == 0:  # avoid no target
+            continue
+        img_name = img_info['image_name']
+        obj_bboxes = np.asarray(bounding_boxes)
+        obj_classes_id = np.asarray(bounding_boxes_cls)
+        image_data = np.hstack((obj_bboxes, obj_classes_id))
+        data_dict[img_name] = image_data
+        cnt += 1
+
+    print('[Info]: ------{0} \n total is {1}'.format(data_dict, cnt))
+    pickle.dump(data_dict, open(Save_Path, 'wb'))
+    print('Create COCO pkl is Ok!')
 
 
 def generate_coco_tfrecord():
     pass
 
 
+def test_pkl(train_img_path, pkl_path):
+    gt = pickle.load(open(pkl_path, 'rb'))
+    keys = sorted(gt.keys())
+
+    class_name_np = np.array(class_need)
+    for key in keys:
+        img_path = os.path.join(train_img_path, key)
+        # img = imread(img_path).astype('float32')
+        img = cv2.imread(img_path)
+
+        img_size = img.copy()
+        img_shape = img.shape[:2]
+        WIDTH = img.shape[1]
+        HEIGHT = img.shape[0]
+        resize_shape = (300, 300)
+        img_size = cv2.resize(img_size, resize_shape)
+
+        for bbox in gt[key]:
+            class_mask = bbox[4:] == 1
+            class_name = class_name_np[class_mask][0]
+            x1 = int(bbox[0] * WIDTH)
+            y1 = int(bbox[1] * HEIGHT)
+            x2 = int(bbox[2] * WIDTH)
+            y2 = int(bbox[3] * HEIGHT)
+            cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), thickness=2)
+            cv2.putText(img, 'C: ' + str(class_name), (int(x1), int(y1) - 7),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            # if show_bdd_gt:
+            #     for obj in img_dict[key]:
+            #         if obj['category'] in CLASS_NEED.keys():
+            #             left_top_point = (int(obj['box2d']['x1']) + 2, int(obj['box2d']['y1']))
+            #             right_down_point = (int(obj['box2d']['x2']) + 2, int(obj['box2d']['y2']))
+            #             if CLASS_NEED[obj['category']] == 0:
+            #                 cv2.rectangle(img, left_top_point, right_down_point, (0, 255, 0), thickness=2)
+            #             else:
+            #                 cv2.rectangle(img, left_top_point, right_down_point, (200, 255, 255), thickness=2)
+
+            x1 = int(bbox[0] * resize_shape[0])
+            y1 = int(bbox[1] * resize_shape[1])
+            x2 = int(bbox[2] * resize_shape[0])
+            y2 = int(bbox[3] * resize_shape[1])
+            cv2.rectangle(img_size, (x1, y1), (x2, y2), (255, 255, 0), thickness=2)
+            cv2.putText(img_size, 'C: ' + str(class_name), (int(x1), int(y1) - 7),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+
+        jion_img_size = (max(img_shape[0], resize_shape[0]), img_shape[1] + resize_shape[1], 3)
+        jion_img = np.zeros(jion_img_size).astype('uint8')
+        jion_img[:img_shape[0], :img_shape[1], :] = img
+        jion_img[:resize_shape[0]:, img_shape[1]:, :] = img_size[:, :, :]
+        print('-----------------', key)
+        cv2.imshow('orgin', jion_img)
+        # cv2.imshow('img', img)
+        # cv2.imshow('img_size', img_size)
+        cv2.waitKey(0)
+
+
 if __name__ == '__main__':
     print('This is a special script for processing COCO 2017 data......')
-    Img_DIR = '/eDisk/FCWS_dataset/coco2017/train&val/train2017/'
-    Original_Json = '/eDisk/FCWS_dataset/coco2017/train&val/annotations/instances_train2017.json'
+    Img_DIR = '/eDisk/FCWS_dataset/coco2017/train&val/val2017/'
+    Original_Json = '/eDisk/FCWS_dataset/coco2017/train&val/annotations/instances_val2017.json'
     Save_Path = 'COCO_2017.pkl'
     trans_format = 'pkl'
     if trans_format == 'pkl':
-        generate_coco_pkl()
+        # generate_coco_pkl(Original_Json, Save_Path)
+        test_pkl(Img_DIR, Save_Path)
+
     elif trans_format == 'tfrecord':
         generate_coco_tfrecord()
     elif trans_format == 'json' or trans_format == 'xml':
